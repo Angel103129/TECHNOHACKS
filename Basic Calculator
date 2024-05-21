@@ -1,133 +1,176 @@
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
+public class Calculator extends JFrame implements ActionListener {
+    private JTextField display;
+    private StringBuilder input;
 
-public class Calculator implements ActionListener {
-    private static JTextField inputBox; // Text field to display input and result
-    private static String operand1 = ""; // First operand
-    private static String operand2 = ""; // Second operand
-    private static String operator = ""; // Operator for calculation
-
-    Calculator() {}
-
-    // Main method to create and display the calculator window
-    public static void main(String[] args) {
-        createWindow();
+    public Calculator() {
+        input = new StringBuilder();
+        createUI();
     }
 
-    // Method to create the calculator window
-    private static void createWindow() {
-        JFrame frame = new JFrame("Calculator");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        createUI(frame); // Creating UI elements
-        frame.setExtendedState(JFrame.MAXIMIZED_BOTH); // Maximize the window to occupy the whole screen
-        frame.setVisible(true); // Making the window visible
-    }
+    private void createUI() {
+        display = new JTextField();
+        display.setEditable(false);
+        display.setFont(new Font("Arial", Font.PLAIN, 24));
+        display.setHorizontalAlignment(JTextField.RIGHT);
+        display.setPreferredSize(new Dimension(0, 50));
 
-    // Method to create UI elements
-    private static void createUI(JFrame frame) {
-        JPanel panel = new JPanel(new GridBagLayout()); // Main panel to hold all components
-        Calculator calculator = new Calculator(); // Calculator instance
-        GridBagConstraints gbc = new GridBagConstraints(); // Constraints for grid bag layout
+        JPanel panel = new JPanel();
+        panel.setLayout(new GridLayout(5, 4, 0, 0));
         panel.setBackground(Color.BLACK);
-        inputBox = new JTextField(10); 
-        inputBox.setEditable(false);
-        inputBox.setBackground(Color.BLACK); 
-        inputBox.setForeground(Color.WHITE); 
-        inputBox.setFont(new Font("Arial", Font.PLAIN, 24)); 
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.gridwidth = 4;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        panel.add(inputBox, gbc); // Adding input text field to the panel
-        gbc.gridwidth = 1;
 
-        String[] buttonLabels = { "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "C", "0", ".", "+",
-                "=" };
+        String[] buttons = {
+            "7", "8", "9", "/",
+            "4", "5", "6", "*",
+            "1", "2", "3", "-",
+            "0", ".", "=", "+",
+            "(", ")", "C", "CE"
+        };
 
-        for (int i = 0; i < buttonLabels.length; i++) {
-            JButton button = new JButton(buttonLabels[i]);
-            button.addActionListener(calculator);
+        for (String text : buttons) {
+            JButton button = new JButton(text);
+            button.setFont(new Font("Arial", Font.PLAIN, 18));
+            button.addActionListener(this);
             button.setBackground(Color.BLACK);
             button.setForeground(Color.WHITE);
-            button.setFont(new Font("Arial", Font.PLAIN, 24)); 
-            gbc.gridx = i % 4;
-            gbc.gridy = i / 4 + 1;
-            if (buttonLabels[i].equals("=")) {
-                gbc.gridwidth = 4;
-            } else {
-                gbc.gridwidth = 1;
-            }
-            panel.add(button, gbc);
+            panel.add(button);
         }
 
-        frame.getContentPane().add(panel, BorderLayout.CENTER); // Adding panel to the frame
+        add(display, BorderLayout.NORTH);
+        add(panel);
+
+        setTitle("Calculator");
+        setSize(400, 500);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setVisible(true);
+
+        // Add key listener for keyboard input
+        setFocusable(true);
+        requestFocusInWindow();
+        addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyTyped(java.awt.event.KeyEvent evt) {
+                char c = evt.getKeyChar();
+                if (Character.isDigit(c) || c == '+' || c == '-' || c == '*' || c == '/' || c == '(' || c == ')' || c == '.') {
+                    input.append(c);
+                    display.setText(input.toString());
+                } else if (c == '\n') { // Enter key
+                    calculateResult();
+                } else if (c == '\b') { // Backspace key
+                    if (input.length() > 0) {
+                        input.deleteCharAt(input.length() - 1);
+                        display.setText(input.toString());
+                    }
+                }
+            }
+        });
     }
 
-    // Action performed when a button is clicked
+    @Override
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
-        if (command.charAt(0) == 'C') { // Clear button pressed
-            operand1 = "";
-            operand2 = "";
-            operator = "";
-            inputBox.setText("");
-        } else if (command.charAt(0) == '=') { // Equals button pressed
-            if (!operand1.isEmpty() && !operand2.isEmpty() && !operator.isEmpty()) {
-                double result = evaluate();
-                if (!Double.isNaN(result) && !Double.isInfinite(result)) {
-                    inputBox.setText(String.valueOf(result));
-                    operand1 = String.valueOf(result);
-                    operand2 = "";
-                    operator = "";
-                } else {
-                    inputBox.setText("Error");
-                }
-            }
-        } else { // Number or operator button pressed
-            inputBox.setText(inputBox.getText() + command);
-            if (isOperator(command)) {
-                operator = command;
-            } else {
-                if (operator.isEmpty()) {
-                    operand1 += command;
-                } else {
-                    operand2 += command;
-                }
-            }
+        if (command.equals("C") || command.equals("CE")) {
+            input.setLength(0);
+            display.setText("");
+        } else if (command.equals("=")) {
+            calculateResult();
+        } else {
+            input.append(command);
+            display.setText(input.toString());
         }
     }
 
-    // Check if a string is an operator
-    private boolean isOperator(String str) {
-        return str.equals("+") || str.equals("-") || str.equals("*") || str.equals("/");
+    private void calculateResult() {
+        try {
+            String result = evaluate(input.toString());
+            display.setText(result);
+            input.setLength(0);
+            input.append(result);
+        } catch (Exception e) {
+            display.setText("Error");
+            input.setLength(0);
+        }
     }
 
-    // Evaluate the expression
-    private double evaluate() {
-        double result = 0;
-        if (operator.equals("+")) {
-            result = Double.parseDouble(operand1) + Double.parseDouble(operand2);
-        } else if (operator.equals("-")) {
-            result = Double.parseDouble(operand1) - Double.parseDouble(operand2);
-        } else if (operator.equals("*")) {
-            result = Double.parseDouble(operand1) * Double.parseDouble(operand2);
-        } else if (operator.equals("/")) {
-            if (!operand2.equals("0")) {
-                result = Double.parseDouble(operand1) / Double.parseDouble(operand2);
-            } else {
-                result = Double.NaN;
+    private String evaluate(String expression) {
+        return String.valueOf(eval(expression));
+    }
+
+    // Helper method to evaluate expressions
+    private double eval(final String str) {
+        return new Object() {
+            int pos = -1, ch;
+
+            void nextChar() {
+                ch = (++pos < str.length()) ? str.charAt(pos) : -1;
             }
-        }
-        return result;
+
+            boolean eat(int charToEat) {
+                while (ch == ' ') nextChar();
+                if (ch == charToEat) {
+                    nextChar();
+                    return true;
+                }
+                return false;
+            }
+
+            double parse() {
+                nextChar();
+                double x = parseExpression();
+                if (pos < str.length()) throw new RuntimeException("Unexpected: " + (char)ch);
+                return x;
+            }
+
+            // Grammar:
+            // expression = term | expression `+` term | expression `-` term
+            // term = factor | term `*` factor | term `/` factor
+            // factor = `+` factor | `-` factor | `(` expression `)` | number
+            //        | functionName `(` expression `)` | functionName factor | factor `^` factor
+
+            double parseExpression() {
+                double x = parseTerm();
+                for (;;) {
+                    if      (eat('+')) x += parseTerm(); // addition
+                    else if (eat('-')) x -= parseTerm(); // subtraction
+                    else return x;
+                }
+            }
+
+            double parseTerm() {
+                double x = parseFactor();
+                for (;;) {
+                    if      (eat('*')) x *= parseFactor(); // multiplication
+                    else if (eat('/')) x /= parseFactor(); // division
+                    else return x;
+                }
+            }
+
+            double parseFactor() {
+                if (eat('+')) return parseFactor(); // unary plus
+                if (eat('-')) return -parseFactor(); // unary minus
+
+                double x;
+                int startPos = this.pos;
+                if (eat('(')) { // parentheses
+                    x = parseExpression();
+                    eat(')');
+                } else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
+                    while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
+                    x = Double.parseDouble(str.substring(startPos, this.pos));
+                } else {
+                    throw new RuntimeException("Unexpected: " + (char)ch);
+                }
+
+                return x;
+            }
+        }.parse();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(Calculator::new);
     }
 }
